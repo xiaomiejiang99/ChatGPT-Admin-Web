@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import React, { FormEvent, useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Iframe from 'react-iframe';
 
 import { IconButton } from '@/components/button';
@@ -20,8 +20,6 @@ import { useStore } from '@/store';
 import '@/styles/globals.scss';
 import '@/styles/prism.scss';
 
-import { validateCodeDto } from 'shared';
-
 import styles from './auth.module.scss';
 
 const weChatOauthAppId = process.env.NEXT_PUBLIC_WECHAT_OAUTH_APP_ID!;
@@ -31,7 +29,7 @@ const weChatOauthRedirectUrl =
 /* 验证码登录/注册 */
 function ValidateCodeLogin() {
   const router = useRouter();
-  const { fetcher, setSessionToken } = useStore();
+  const { fetcher, setAuthToken } = useStore();
   const [identity, setIdentity] = useState('');
   const [ifCodeSent, setIfCodeSent] = useState(false);
   const [validateCode, setValidateCode] = useState('');
@@ -67,7 +65,7 @@ function ValidateCodeLogin() {
       .then((res) => res.json())
       .then((res) => {
         if (res.success) {
-          setSessionToken(res.token);
+          setAuthToken(res.sessionToken, res.refreshToken);
           return router.push('/');
         } else {
           showToast(res.message);
@@ -153,7 +151,7 @@ function ValidateCodeLogin() {
 /* 密码登录 */
 const PasswordLogin: React.FC = () => {
   const router = useRouter();
-  const { fetcher, setSessionToken } = useStore();
+  const { fetcher, setAuthToken } = useStore();
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, handleSubmit] = usePreventFormSubmit();
@@ -167,7 +165,7 @@ const PasswordLogin: React.FC = () => {
       .then((res) => res.json())
       .then((res) => {
         if (res.success) {
-          setSessionToken(res.token);
+          setAuthToken(res.sessionToken, res.refreshToken);
           router.push('/');
         } else {
           router.refresh();
@@ -272,11 +270,18 @@ export default function AuthPage() {
   return (
     <div className={styles['auth-page']}>
       <div className={`no-dark ${styles['auth-logo']}`}>
-        <BotIcon />
+        {!!process.env.LOGO_LOGIN ? (
+          <Image
+            src={process.env.LOGO_LOGIN}
+            alt="Logo"
+            width={100}
+            height={100}
+          />
+        ) : (
+          <BotIcon />
+        )}
       </div>
-      <div className={styles['auth-title']}>
-        {process.env.NEXT_PUBLIC_TITLE}
-      </div>
+      <div className={styles['auth-title']}>{Locales.Index.Title}</div>
       <div className={styles['auth-tips']}></div>
       <div className={styles['auth-container']}>
         {tab === 'code' ? (
@@ -291,20 +296,22 @@ export default function AuthPage() {
           <div className={styles['divider-text']}>OR</div>
           <div className={styles['divider-line']} />
         </div>
-        <div className={styles['third-part-login-options']}>
-          <div
-            className={styles['third-part-option']}
-            onClick={() => {
-              setTab(() => {
-                if (tab != 'wechat') return 'wechat';
-                else return 'code';
-              });
-            }}
-          >
-            {tab == 'wechat' ? <VerificationCodeIcon /> : <WechatLogo />}
-            <div>使用{tab == 'wechat' ? '验证码' : '微信'}登陆</div>
+        {process.env.WECHAT && (
+          <div className={styles['third-part-login-options']}>
+            <div
+              className={styles['third-part-option']}
+              onClick={() => {
+                setTab(() => {
+                  if (tab != 'wechat') return 'wechat';
+                  else return 'code';
+                });
+              }}
+            >
+              {tab == 'wechat' ? <VerificationCodeIcon /> : <WechatLogo />}
+              <div>使用{tab == 'wechat' ? '验证码' : '微信'}登陆</div>
+            </div>
           </div>
-        </div>
+        )}
         <div className={styles['third-part-login-options']}>
           <div
             className={styles['third-part-option']}
